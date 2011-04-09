@@ -1,1 +1,9 @@
 Place this directory in ~/.extsniff/smods
+So this directory should looks like this:
+~/.extsniff/smods/module1.py
+~/.extsniff/smods/module2.py
+...
+...
+
+You can replace "~/" with /root (you cant run extsniffer from 
+unprivigiled user.
