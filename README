@@ -1,0 +1,51 @@
+extsniff - Extensible sniffer for multi web protocols
+
+Supports:
++ HTTP (with plugins - filters)
++ Scanning for cookies on HTTP
++ Logging to file
++ Searching for username and password in HTTP (plugins)
++ Saving FTP usernames & passwords to file
++ Supports SMTP (only plaintext authorization)
++ Supports POP3
+
+webnull-gentoo-desktop smods # extsniff --help
+extsniff - extensible sniffer for GNU/Linux
+
+Usage: extsniff [option] [long GNU option]
+
+Valid options:
+  -h, --help             : display this help
+  -c, --console          : don't fork into background
+  -d, --debug            : switch to debug log level
+  -p, --print-cookies    : print all cookies
+  -m,                    : load modules (comma separated)
+  -x, --disable-http     : dont listen on HTTP port 80 (tcp port http)
+  -f, --enable-ftp       : start listening on FTP port 21 (tcp port 
+ftp)
+  -r, --enable-pop3      : start listening on POP3 port 110 (tcp port 
+110)
+  -s, --enable-smtp      : start listening on POP3 port 25 (tcp port 
+smtp)
+
+To start sniffing HTTP using all avaiable plugins and output results 
+in console:
+extsniff -m all -c
+
+To fork sniffer to daemon just dont use "-s" (--console).
+Logs you can find in /var/log/extsniff.log
+
+To start sniffing FTP:
+extsniff -x -f -c
+
+To sniff SMTP:
+extsniff -x -s -c
+
+And POP3:
+extsniff -x -r -c
+
+Or you can set sniffer to listen on all avaiable ports:
+extsniff -f -s -r -c -m all
+
+To show URL, cookies and user-agent of all HTTP requests in console:
+extsniff -c -p
