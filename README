@@ -11,6 +11,8 @@ Supports:
 + Saving FTP usernames & passwords to file
 + Supports SMTP (only plaintext authorization)
 + Supports POP3
++ Supports GET method with --print-cookies
++ HTTP Responses manipulation support for man-in-the-middle tests
 
 webnull-gentoo-desktop smods # extsniff --help
 extsniff - extensible sniffer for GNU/Linux
