@@ -339,8 +339,8 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
             if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
                  # found matches for this packet session
                  exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst)")
-
-                 if len(InfoParsed) > 0:
+                 
+                 if InfoParsed != None: # fixed type error
                      log.info(InfoParsed)
                  break
 
