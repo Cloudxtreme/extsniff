@@ -67,6 +67,8 @@ HTTP_HOOKS = dict()
 ##########################################
 
 def printUsage():
+    ''' Prints program usage '''
+
     print "extsniff - extensible sniffer for GNU/Linux"
     print ""
     print "Usage: extsniff [option] [long GNU option]"
@@ -164,9 +166,12 @@ if additionalModules == '*' or additionalModules == 'all':
 #HTTP_HOOKS['pocztafm']['module'] = 'parseInteriaPoczta'
 
 def is_ascii(s):
+    ''' Check if string is UTF-8 encoded '''
     return all(ord(c) < 128 for c in s)
 
 def parseHeader(buff,type='response'):
+    ''' Parse HTTP Response/Request headers '''
+
     import re
     SEP = '\r\n\r\n'
     HeadersSEP = '\r*\n(?![\t\x20])'
@@ -216,6 +221,8 @@ allpackets = dict()
 lastPacket = False
 
 def http_monitor_callback(pkt):
+        ''' Callback for sniffer() '''
+
         global allpackets, lastPacket
         if pkt.haslayer(TCP):
               # ack
@@ -256,6 +263,8 @@ def http_monitor_callback(pkt):
                              False
 
 def parseData (raw, ipsrc, ipdst, sport, dport):
+    ''' Determine what kind of data we have and redirect output to parser '''
+
      global PORTS
      parsedContent = parseHeader(raw)
      sport = str(sport)
@@ -279,6 +288,7 @@ def parseData (raw, ipsrc, ipdst, sport, dport):
 SMTP_SESSIONS=dict()
 
 def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
+    ''' Parse all packets on SMTP port '''
 
     uid = str(ipsrc)+str(ipdst)
     if not SMTP_SESSIONS.has_key(uid):
@@ -319,6 +329,8 @@ def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
 POSTData = dict()
 
 def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
+    ''' Parse HTTP Data, Requests/Responses, GET and POST '''
+
     global printCookies, POSTData
     # check if its request or response
     if re.findall('HTTP/1.1 200 OK', raw):
@@ -368,6 +380,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
                 True
 
 def parsePOST(Headers, ipsrc=''):
+    ''' Show POST data not parsed by any filter '''
     global POSTData
     # check if body exists...
     if Headers.has_key('body'):
@@ -384,7 +397,10 @@ def parsePOST(Headers, ipsrc=''):
             
 
 def parseFacebook(Headers, ipsrc='', hook=''):
+    ''' An example of filter '''
+
     print "Hello facebook, this is a test..."
+    return "This will be logged"
 
 
 #def parseInteriaPoczta(Headers, ipsrc='', hook=''):
@@ -398,6 +414,8 @@ def parseFacebook(Headers, ipsrc='', hook=''):
 FTP_CACHE = dict()
 
 def parseFTPData(raw, ipsrc, ipdst, sport, dport, servertype='FTP'):
+    ''' Parses FTP and POP3 '''
+
     global FTP_CACHE, FTP_LOG
 
     user=re.findall("(?i)USER (.*)",raw)
@@ -478,6 +496,7 @@ def daemonize (stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
 ################
 
 def main():
+    ''' Main function '''
     global log, FTP_LOG, debugMode, consoleMode, printCookies, expr
 
     log=logging.getLogger(APP_NAME)
