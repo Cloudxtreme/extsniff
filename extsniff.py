@@ -58,6 +58,7 @@ PORTS['SMTP'] = 25
 expr='tcp port http'
 
 HTTP_HOOKS = dict()
+GET_HOOKS = dict()
 #HTTP_HOOKS['facebook'] = dict()
 #HTTP_HOOKS['facebook']['url'] = 'facebook.com/editprofile'
 #HTTP_HOOKS['facebook']['module'] = 'parseFacebook'
@@ -156,7 +157,11 @@ if additionalModules == '*' or additionalModules == 'all':
                 print "Importing: "+module_name
 
             exec("import "+module_name)
-            exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS")
+            try:
+                exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS") # POST
+                exec("GET_HOOKS['"+module_name+"'] = "+module_name+".G_HOOKS") # GET
+            except AttributeError:
+                True
         except ImportError:
             print "ERROR: Cannot import "+module_name
 
@@ -249,9 +254,11 @@ def http_monitor_callback(pkt):
                      if not allpackets.has_key(TCP_SID):
                          allpackets[TCP_SID] = dict()
                          allpackets[TCP_SID]['data'] = tcpdata
+                         allpackets[TCP_SID]['packets'] = dict()
+                         allpackets[TCP_SID]['packets'][seq] = pkt
 
                          if lastPacket != False:
-                             parseData(allpackets[lastPacket]['data'], ipsrc, ipdst, sport, dport)
+                             parseData(allpackets[lastPacket]['data'], ipsrc, ipdst, sport, dport, allpackets[lastPacket]['packets'])
 
                          lastPacket = TCP_SID # mark last packet
                         
@@ -259,12 +266,12 @@ def http_monitor_callback(pkt):
                      elif allpackets.has_key(TCP_SID):
                          try:
                              allpackets[TCP_SID]['data'] = allpackets[TCP_SID]['data']+str(tcpdata)
+                             allpackets[TCP_SID]['packets'][seq] = pkt
                          except TypeError:
                              False
 
-def parseData (raw, ipsrc, ipdst, sport, dport):
-    ''' Determine what kind of data we have and redirect output to parser '''
-
+def parseData (raw, ipsrc, ipdst, sport, dport, pkt=''):
+     ''' Determine what kind of data we have and redirect output to parser '''
      global PORTS
      parsedContent = parseHeader(raw)
      sport = str(sport)
@@ -272,7 +279,7 @@ def parseData (raw, ipsrc, ipdst, sport, dport):
 
      # check if its HTTP transmission
      if sport == str(PORTS['HTTP']) or dport == str(PORTS['HTTP']):
-         parseHTTPData(raw, ipsrc, ipdst, sport, dport)
+         parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt)
      elif sport == str(PORTS['FTP']) or dport == str(PORTS['FTP']):
          parseFTPData(raw, ipsrc, ipdst, sport, dport)
      elif sport == str(PORTS['POP3']) or dport == str(PORTS['POP3']):
@@ -327,11 +334,12 @@ def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
 ########################
 
 POSTData = dict()
+LastGETRequest = False
 
-def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
+def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     ''' Parse HTTP Data, Requests/Responses, GET and POST '''
 
-    global printCookies, POSTData
+    global printCookies, POSTData, LastGETRequest
     # check if its request or response
     if re.findall('HTTP/1.1 200 OK', raw):
         DataType = 'http:response'
@@ -349,7 +357,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
         #SearchHost = str(Headers['headers']['host'][0]).replace('www.', '')
         try:
              URL = Headers['headers']['host'][0]+Headers['uri']
-        except NoneType:
+        except KeyError:
              True
 
         Found=False
@@ -358,7 +366,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
             #print "SEARCHING "+HTTP_HOOKS[hook]['url']+" in "+str(URL)
             if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
                  # found matches for this packet session
-                 exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst)")
+                 exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst, pkt)")
                  
                  if InfoParsed != None: # fixed type error
                      uid = md5.new(InfoParsed).digest()
@@ -373,11 +381,78 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
         if Found == False:
             parsePOST(Headers, ipdst)
 
+        # FIX MISSING HEADERS
+        if not Headers['headers'].has_key('referer'):
+            Headers['headers']['referer'] = {0:'None'}
+
+        if not Headers['headers'].has_key('cookie'):
+            Headers['headers']['cookie'] = {0:'None'}
+
+        if not Headers['headers'].has_key('cookie'):
+            Headers['headers']['user-agent'] = {0:'None'}
+
+
+
         if printCookies == True:
             try:
                 print Headers['method']+": "+URL+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n"
             except KeyError:
                 True
+    elif DataType == 'http:request:GET':
+        Headers = parseHeader(raw, 'request')
+
+        try:
+             LastGETRequest = Headers['headers']['host'][0]+Headers['uri']
+        except KeyError:
+             True
+
+        # FIX MISSING HEADERS
+        if not Headers['headers'].has_key('referer'):
+            Headers['headers']['referer'] = {0:'None'}
+
+        if not Headers['headers'].has_key('cookie'):
+            Headers['headers']['cookie'] = {0:'None'}
+
+        if not Headers['headers'].has_key('cookie'):
+            Headers['headers']['user-agent'] = {0:'None'}
+
+
+        if printCookies == True:
+            try:
+                print Headers['method']+": "+LastGETRequest+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n"
+            except KeyError:
+                True
+
+
+    elif DataType == 'http:response':
+        ##################### RESPONSE, CREATED FOR HIJACKING SSL #####################
+
+        if LastGETRequest == False:
+            log.warning("Got response for unknown request")
+            return
+
+        Headers = parseHeader(raw, 'response')
+        Found=False
+        URL = LastGETRequest
+
+        # Mark as used
+        #LastGETRequest = False
+
+        for hook in GET_HOOKS:
+            #print "SEARCHING "+GET_HOOKS[hook]['url']+" in "+str(URL)
+            if re.findall("(?i)"+GET_HOOKS[hook]['url']+"(.*)", str(URL)):
+                 # found matches for this packet session
+                 exec("InfoParsed = "+str(GET_HOOKS[hook]['module'])+"(Headers, ipdst, hook, pkt, raw)")
+                 
+                 if InfoParsed != None: # fixed type error
+                     uid = md5.new(InfoParsed).digest()
+
+                     if not POSTData.has_key(uid):
+                         POSTData[uid] = True
+                         log.info(InfoParsed)
+
+                     Found=True
+                 break
 
 def parsePOST(Headers, ipsrc=''):
     ''' Show POST data not parsed by any filter '''
@@ -406,9 +481,9 @@ def parseFacebook(Headers, ipsrc='', hook=''):
 #def parseInteriaPoczta(Headers, ipsrc='', hook=''):
 #    print Headers
 
-#######################
-##### FTP PARSER  #####
-#######################
+############################
+##### FTP/POP3 PARSER  #####
+############################
 
 # here will be stored ftp server, username and password to avoid spamming in logs
 FTP_CACHE = dict()
