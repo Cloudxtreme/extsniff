@@ -22,9 +22,9 @@
 import logging 
 import re
 import scapy
-from scapy.all import sniff,srp,Ether,ARP,conf,TCP,Raw,IP,Dot11,Ether
+from scapy.all import sniff,Ether,ARP,conf,TCP,Raw,IP,Dot11,Ether
 import getopt
-import sys,os,time,glob,base64
+import sys,os,time,glob,base64,md5
 
 
 #################################
@@ -162,6 +162,9 @@ if additionalModules == '*' or additionalModules == 'all':
 #HTTP_HOOKS['pocztafm'] = dict()
 #HTTP_HOOKS['pocztafm']['url'] = 'logowanie.interia.pl/poczta/zaloguj'
 #HTTP_HOOKS['pocztafm']['module'] = 'parseInteriaPoczta'
+
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
 
 def parseHeader(buff,type='response'):
     import re
@@ -312,20 +315,23 @@ def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
 ########################
 ##### HTTP PARSER  #####
 ########################
-     
+
+POSTData = dict()
 
 def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
-    global printCookies
+    global printCookies, POSTData
     # check if its request or response
     if re.findall('HTTP/1.1 200 OK', raw):
         DataType = 'http:response'
-    elif re.findall('GET ', raw) or re.findall('POST ', raw):
-        DataType = 'http:request'
+    elif re.findall('GET ', raw):
+        DataType = 'http:request:GET'
+    elif re.findall('POST ', raw):
+        DataType = 'http:request:POST'
     else:
         DataType = 'http:unknown'
 
     # all HTTP REQUESTS
-    if DataType == 'http:request':
+    if DataType == 'http:request:POST':
         Headers = parseHeader(raw, 'request')
 
         #SearchHost = str(Headers['headers']['host'][0]).replace('www.', '')
@@ -334,6 +340,8 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
         except NoneType:
              True
 
+        Found=False
+
         for hook in HTTP_HOOKS:
             #print "SEARCHING "+HTTP_HOOKS[hook]['url']+" in "+str(URL)
             if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
@@ -341,14 +349,39 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport):
                  exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst)")
                  
                  if InfoParsed != None: # fixed type error
-                     log.info(InfoParsed)
+                     uid = md5.new(InfoParsed).digest()
+
+                     if not POSTData.has_key(uid):
+                         POSTData[uid] = True
+                         log.info(InfoParsed)
+
+                     Found=True
                  break
+
+        if Found == False:
+            parsePOST(Headers, ipdst)
 
         if printCookies == True:
             try:
                 print Headers['method']+": "+URL+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n"
             except KeyError:
                 True
+
+def parsePOST(Headers, ipsrc=''):
+    global POSTData
+    # check if body exists...
+    if Headers.has_key('body'):
+        # check if body is not empty
+        if Headers['body'] != "":
+            # is UTF-8 encoded?
+            if is_ascii(Headers['body']):
+                if Headers['headers'].has_key('host'):
+                    uid = md5.new("["+Headers['headers']['host'][0]+"]: POST Data: "+Headers['body']).digest()
+
+                    if not POSTData.has_key(uid):
+                        POSTData[uid] = True
+                        log.info("["+Headers['headers']['host'][0]+"]: POST Data: "+Headers['body'])
+            
 
 def parseFacebook(Headers, ipsrc='', hook=''):
     print "Hello facebook, this is a test..."
