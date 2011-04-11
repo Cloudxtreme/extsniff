@@ -140,8 +140,8 @@ if additionalModules != False and additionalModules != '*' and additionalModules
                 print "Importing: "+smodule
 
             exec("import "+smodule)
-            exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS") # POST
-            exec("GET_HOOKS['"+module_name+"'] = "+module_name+".G_HOOKS") # GET
+            exec("HTTP_HOOKS['"+smodule+"'] = "+smodule+".L_HOOKS") # POST
+            exec("GET_HOOKS['"+smodule+"'] = "+smodule+".G_HOOKS") # GET
         except ImportError:
             print "ERROR: Cannot import "+smodule
 
