@@ -168,7 +168,7 @@ if additionalModules == '*' or additionalModules == 'all':
         try:
             exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS") # POST
             exec("GET_HOOKS['"+module_name+"'] = "+module_name+".G_HOOKS") # GET
-            exec("RES_HOOKS['"+module_name+"'] = "+smodule+".R_HOOKS") # RESPONSE
+            exec("RES_HOOKS['"+module_name+"'] = "+module_name+".R_HOOKS") # RESPONSE
         except AttributeError:
             True
 
