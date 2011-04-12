@@ -376,7 +376,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
                 #print "SEARCHING "+HTTP_HOOKS[hook]['url']+" in "+str(URL)
                 if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
                      # found matches for this packet session
-                     exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst, pkt, raw)")
+                     exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst, pkt)")
                      
                      if InfoParsed != None: # fixed type error
                          uid = md5.new(InfoParsed).digest()
