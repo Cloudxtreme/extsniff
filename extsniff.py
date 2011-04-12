@@ -57,8 +57,9 @@ PORTS['SMTP'] = 25
 #expr='tcp port http or tcp port ftp'
 expr='tcp port http'
 
-HTTP_HOOKS = dict()
-GET_HOOKS = dict()
+HTTP_HOOKS = dict() # POST
+GET_HOOKS = dict()  # GET
+RES_HOOKS = dict()  # RESPONSE
 #HTTP_HOOKS['facebook'] = dict()
 #HTTP_HOOKS['facebook']['url'] = 'facebook.com/editprofile'
 #HTTP_HOOKS['facebook']['module'] = 'parseFacebook'
@@ -135,15 +136,19 @@ if additionalModules != False and additionalModules != '*' and additionalModules
     sys.path.append(str(userdir)+"/.extsniff/smods/")
 
     for smodule in smodules:
+        if debugMode == True:
+            print "Importing: "+smodule
         try:
-            if debugMode == True:
-                print "Importing: "+smodule
-
             exec("import "+smodule)
-            exec("HTTP_HOOKS['"+smodule+"'] = "+smodule+".L_HOOKS") # POST
-            exec("GET_HOOKS['"+smodule+"'] = "+smodule+".G_HOOKS") # GET
         except ImportError:
             print "ERROR: Cannot import "+smodule
+
+        try:
+            exec("HTTP_HOOKS['"+smodule+"'] = "+smodule+".L_HOOKS") # POST
+            exec("GET_HOOKS['"+smodule+"'] = "+smodule+".G_HOOKS") # GET
+            exec("RES_HOOKS['"+smodule+"'] = "+smodule+".R_HOOKS") # RESPONSE
+        except AttributeError:
+            True
 
 if additionalModules == '*' or additionalModules == 'all':
     userdir=str(os.popen('cd ~; pwd').read()).replace("\n", '')
@@ -152,19 +157,22 @@ if additionalModules == '*' or additionalModules == 'all':
     file_list = glob.glob("*.py")
 
     for i in file_list:
+        module_name = str(i).replace('.py', '')
+        if debugMode == True:
+            print "Importing: "+module_name
         try:
-            module_name = str(i).replace('.py', '')
-            if debugMode == True:
-                print "Importing: "+module_name
-
             exec("import "+module_name)
-            try:
-                exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS") # POST
-                exec("GET_HOOKS['"+module_name+"'] = "+module_name+".G_HOOKS") # GET
-            except AttributeError:
-                True
         except ImportError:
             print "ERROR: Cannot import "+module_name
+
+        try:
+            exec("HTTP_HOOKS['"+module_name+"'] = "+module_name+".L_HOOKS") # POST
+            exec("GET_HOOKS['"+module_name+"'] = "+module_name+".G_HOOKS") # GET
+            exec("RES_HOOKS['"+module_name+"'] = "+smodule+".R_HOOKS") # RESPONSE
+        except AttributeError:
+            True
+
+
 
 # poczta.fm
 #HTTP_HOOKS['pocztafm'] = dict()
@@ -363,21 +371,22 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
 
         Found=False
 
-        for hook in HTTP_HOOKS:
-            #print "SEARCHING "+HTTP_HOOKS[hook]['url']+" in "+str(URL)
-            if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
-                 # found matches for this packet session
-                 exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst, pkt)")
-                 
-                 if InfoParsed != None: # fixed type error
-                     uid = md5.new(InfoParsed).digest()
-
-                     if not POSTData.has_key(uid):
-                         POSTData[uid] = True
-                         log.info(InfoParsed)
-
-                     Found=True
-                 break
+        if len(HTTP_HOOKS) > 0:
+            for hook in HTTP_HOOKS:
+                #print "SEARCHING "+HTTP_HOOKS[hook]['url']+" in "+str(URL)
+                if re.findall("(?i)"+HTTP_HOOKS[hook]['url']+"(.*)", str(URL)):
+                     # found matches for this packet session
+                     exec("InfoParsed = "+str(HTTP_HOOKS[hook]['module'])+"(Headers, ipdst, pkt, raw)")
+                     
+                     if InfoParsed != None: # fixed type error
+                         uid = md5.new(InfoParsed).digest()
+    
+                         if not POSTData.has_key(uid):
+                             POSTData[uid] = True
+                             log.info(InfoParsed)
+    
+                         Found=True
+                     break
 
         if Found == False:
             parsePOST(Headers, ipdst)
@@ -417,6 +426,23 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
         if not Headers['headers'].has_key('cookie'):
             Headers['headers']['user-agent'] = {0:'None'}
 
+        if len(GET_HOOKS) > 0:
+            for hook in GET_HOOKS:
+                #print "SEARCHING "+GET_HOOKS[hook]['url']+" in "+str(URL)
+                if re.findall("(?i)"+GET_HOOKS[hook]['url']+"(.*)", str(LastGETRequest)):
+                     # found matches for this packet session
+                     exec("InfoParsed = "+str(GET_HOOKS[hook]['module'])+"(Headers, ipdst, hook, pkt, raw)")
+                     
+                     if InfoParsed != None: # fixed type error
+                         uid = md5.new(InfoParsed).digest()
+    
+                         if not POSTData.has_key(uid):
+                             POSTData[uid] = True
+                             log.info(InfoParsed)
+    
+                         Found=True
+                     break
+
 
         if printCookies == True:
             try:
@@ -438,22 +464,22 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
 
         # Mark as used
         #LastGETRequest = False
-
-        for hook in GET_HOOKS:
-            #print "SEARCHING "+GET_HOOKS[hook]['url']+" in "+str(URL)
-            if re.findall("(?i)"+GET_HOOKS[hook]['url']+"(.*)", str(URL)):
-                 # found matches for this packet session
-                 exec("InfoParsed = "+str(GET_HOOKS[hook]['module'])+"(Headers, ipdst, hook, pkt, raw)")
-                 
-                 if InfoParsed != None: # fixed type error
-                     uid = md5.new(InfoParsed).digest()
-
-                     if not POSTData.has_key(uid):
-                         POSTData[uid] = True
-                         log.info(InfoParsed)
-
-                     Found=True
-                 break
+        if len(RES_HOOKS) > 0:
+            for hook in RES_HOOKS:
+                #print "SEARCHING "+RES_HOOKS[hook]['url']+" in "+str(URL)
+                if re.findall("(?i)"+RES_HOOKS[hook]['url']+"(.*)", str(URL)):
+                     # found matches for this packet session
+                     exec("InfoParsed = "+str(RES_HOOKS[hook]['module'])+"(Headers, ipdst, hook, pkt, raw)")
+                     
+                     if InfoParsed != None: # fixed type error
+                         uid = md5.new(InfoParsed).digest()
+    
+                         if not POSTData.has_key(uid):
+                             POSTData[uid] = True
+                             log.info(InfoParsed)
+    
+                         Found=True
+                     break
 
 def parsePOST(Headers, ipsrc=''):
     ''' Show POST data not parsed by any filter '''
