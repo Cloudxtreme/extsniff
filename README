@@ -1,7 +1,6 @@
 extsniff - Extensible sniffer for multi web protocols
 
-Requires: scapy (python library), Unix-like operating system (Windows 
-is not supported)
+Requires: scapy (python library), Unix-like operating system (Windows is not supported)
 
 Supports:
 + HTTP (with plugins - filters)
