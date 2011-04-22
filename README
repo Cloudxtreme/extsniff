@@ -12,6 +12,9 @@ Supports:
 + Supports POP3
 + Supports GET method with --print-cookies
 + HTTP Responses manipulation support for man-in-the-middle tests
++ Facebook cookies saving (can be easily imported to web browser with one click - Cookie 
+Importer for Firefox )
+
 
 webnull-gentoo-desktop smods # extsniff --help
 extsniff - extensible sniffer for GNU/Linux

