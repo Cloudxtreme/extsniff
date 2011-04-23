@@ -14,7 +14,7 @@ Supports:
 + HTTP Responses manipulation support for man-in-the-middle tests
 + Facebook cookies saving (can be easily imported to web browser with one click - Cookie 
 Importer for Firefox )
-
++ IRC Support (logging in, NickServ, ChanServ)
 
 webnull-gentoo-desktop smods # extsniff --help
 extsniff - extensible sniffer for GNU/Linux
@@ -35,6 +35,7 @@ Valid options:
   -l, --enable-logging   : enable logging messages to file when in console mode
   -u, --log-file=        : select custom log file (default: /var/log/extsniff.log)
   -i, --iface=           : custom interface to listen to
+  -q, --enable-irc       : listen on 6667 and 6666 IRC ports
 
 To start sniffing HTTP using all avaiable plugins and output results 
 in console:
@@ -60,3 +61,6 @@ extsniff -c -p -o
 
 Extsniff can also run in daemon mode, you just need to remove -c param from examples. 
 Its recommended to remove -o param too when using daemon mode.
+
+To listen on IRC ports:
+extsniff -c -q -o -l # -c (dont fork to background), -q (enable IRC), -o (output to console), -l (save to logs)

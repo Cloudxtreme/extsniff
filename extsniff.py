@@ -100,11 +100,12 @@ def printUsage():
     print "  -l, --enable-logging   : enable logging messages to file when in console mode"
     print "  -u, --log-file=        : select custom log file (default: /var/log/extsniff.log)"
     print "  -i, --iface=           : custom interface to listen to"
+    print "  -q, --enable-irc       : listen on 6667 and 6666 IRC ports"
     print ""
     exit(0);
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'srxfcdpholu:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface='])
+    opts, args = getopt.getopt(sys.argv[1:], 'qsrxfcdpholu:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface=', 'enable-irc'])
 except getopt.error, msg:
     print msg
     print 'for help use --help'
@@ -146,6 +147,11 @@ for o, a in opts:
         logOutput=True
     if o in ('-i', '--iface'):
         conf.iface=a
+    if o in ('-q', '--enable-irc'):
+        if expr == '':
+           expr = 'tcp port 6667 or tcp port 6666'
+        else:
+           expr = expr+" or tcp port 6667 or tcp port 6666"
     if o in ('-u', '--log-file'):
         # check if directory is writable
         if not os.access(a, os.W_OK):
@@ -315,6 +321,52 @@ def parseData (raw, ipsrc, ipdst, sport, dport, pkt=''):
          parseFTPData(raw, ipsrc, ipdst, sport, dport, 'POP3')
      elif sport == str(PORTS['SMTP']) or dport == str(PORTS['SMTP']):
          parseSMTPData(raw, ipsrc, ipdst, sport, dport)
+     elif sport == "6667" or dport == "6667" or sport == "6666" or dport == "6666":
+         parseIRCData(raw, ipsrc, ipdst, sport, dport)
+
+
+#######################
+##### IRC PARSER  #####
+#######################
+
+lastIRCPass = False
+IRCData = dict()
+
+def parseIRCData(raw, ipsrc, ipdst, sport, dport):
+    global lastIRCPass
+    #print "\""+raw+"\""	
+    #print "\n\n\nNext packet!"
+    raw = str(raw)
+
+    if raw[0:4] == "PASS":
+       PasswdSearch = re.findall("PASS (.*)\\r\\n", raw)
+       if len(PasswdSearch) == 1:
+           lastIRCPass = str(PasswdSearch[0])
+       
+    if raw[0:4] == "NICK":
+        if lastIRCPass != False:
+           NickSearch = re.findall("NICK (.*)\\r\\n", raw)
+           if len(NickSearch) == 1:
+               printMessage("[IRC] ipdst="+ipdst+", ipsrc="+ipsrc+", nick="+str(NickSearch[0])+", passwd="+lastIRCPass) 
+               IRCData[str(ipdst+ipsrc)] = NickSearch[0]
+
+    if raw[0:7] == "PRIVMSG":
+        NickServ = raw[8:16]
+
+        if NickServ == "NickServ" or NickServ == "nickserv" or NickServ == "Nickserv" or NickServ == "ChanServ" or NickServ == "chanserv" or NickServ == "Chanserv":
+            PasswdSearch = re.findall(":identify (.*)\\r\\n", raw)
+            if len(PasswdSearch) > 0:
+                if IRCData.has_key(str(ipdst+ipsrc)):
+                    if IRCData[str(ipdst+ipsrc)] != "DONE":
+                        printMessage("[IRC-"+NickServ+"] ipdst="+ipdst+", ipsrc="+ipsrc+", nick="+str(IRCData[str(ipdst+ipsrc)])+", passwd="+PasswdSearch[0]) 
+                        IRCData[str(ipdst+ipsrc)] = "DONE"
+                else:
+                    printMessage("Warning: Got password for unknown login, passwd="+str(PasswdSearch[0]))
+            #else:
+            #    print "Info: Empty login informations"
+
+
+               
 
 
 ########################
