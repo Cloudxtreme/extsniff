@@ -28,31 +28,35 @@ Valid options:
   -p, --print-cookies    : print all cookies
   -m,                    : load modules (comma separated)
   -x, --disable-http     : dont listen on HTTP port 80 (tcp port http)
-  -f, --enable-ftp       : start listening on FTP port 21 (tcp port 
-ftp)
-  -r, --enable-pop3      : start listening on POP3 port 110 (tcp port 
-110)
-  -s, --enable-smtp      : start listening on POP3 port 25 (tcp port 
-smtp)
+  -f, --enable-ftp       : start listening on FTP port 21 (tcp port ftp)
+  -r, --enable-pop3      : start listening on POP3 port 110 (tcp port 110)
+  -s, --enable-smtp      : start listening on POP3 port 25 (tcp port smtp)
+  -o, --enable-stdout    : enable output printing in console
+  -l, --enable-logging   : enable logging messages to file when in console mode
+  -u, --log-file=        : select custom log file (default: /var/log/extsniff.log)
+  -i, --iface=           : custom interface to listen to
 
 To start sniffing HTTP using all avaiable plugins and output results 
 in console:
-extsniff -m all -c
+extsniff -m all -c -o -l
 
 To fork sniffer to daemon just dont use "-s" (--console).
 Logs you can find in /var/log/extsniff.log
 
 To start sniffing FTP:
-extsniff -x -f -c
+extsniff -x -f -c -o -l
 
 To sniff SMTP:
-extsniff -x -s -c
+extsniff -x -s -c -o -l
 
 And POP3:
-extsniff -x -r -c
+extsniff -x -r -c -o -l
 
 Or you can set sniffer to listen on all avaiable ports:
-extsniff -f -s -r -c -m all
+extsniff -f -s -r -c -m all -o -l
 
 To show URL, cookies and user-agent of all HTTP requests in console:
-extsniff -c -p
+extsniff -c -p -o
+
+Extsniff can also run in daemon mode, you just need to remove -c param from examples. 
+Its recommended to remove -o param too when using daemon mode.

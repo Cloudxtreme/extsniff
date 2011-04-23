@@ -5,8 +5,8 @@
 ##  Copyleft by WebNuLL < webnull.www at gmail dot com                     ##
 ##                                                                         ##
 ## This program is free software; you can redistribute it and/or modify it ##
-## under the terms of the GNU General Public License version 2 as          ##
-## published by the Free Software Foundation; version 2.                   ##
+## under the terms of the GNU General Public License version 3 as          ##
+## published by the Free Software Foundation; version 3.                   ##
 ##                                                                         ##
 ## This program is distributed in the hope that it will be useful, but     ##
 ## WITHOUT ANY WARRANTY; without even the implied warranty of              ##
@@ -45,6 +45,8 @@ log=None
 debugMode=False
 consoleMode=False
 printCookies=False
+printMode=False
+logOutput=False
 additionalModules = False # no additional modules, just for cookie sniffing on HTTP or FTP sniffing
 
 # DEFAULT PORTS
@@ -63,6 +65,14 @@ RES_HOOKS = dict()  # RESPONSE
 #HTTP_HOOKS['facebook'] = dict()
 #HTTP_HOOKS['facebook']['url'] = 'facebook.com/editprofile'
 #HTTP_HOOKS['facebook']['module'] = 'parseFacebook'
+
+def printMessage(message):
+    if consoleMode == False or logOutput == True:
+        log.info(message)
+    if printMode == True:
+        print message
+        
+    
 
 ##########################################
 ##### printUsage: display short help #####
@@ -86,10 +96,15 @@ def printUsage():
     print "  -f, --enable-ftp       : start listening on FTP port 21 (tcp port ftp)"
     print "  -r, --enable-pop3      : start listening on POP3 port 110 (tcp port 110)"
     print "  -s, --enable-smtp      : start listening on POP3 port 25 (tcp port smtp)"
+    print "  -o, --enable-stdout    : enable output printing in console"
+    print "  -l, --enable-logging   : enable logging messages to file when in console mode"
+    print "  -u, --log-file=        : select custom log file (default: /var/log/extsniff.log)"
+    print "  -i, --iface=           : custom interface to listen to"
     print ""
+    exit(0);
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'srxfcdphm:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp'])
+    opts, args = getopt.getopt(sys.argv[1:], 'srxfcdpholu:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface='])
 except getopt.error, msg:
     print msg
     print 'for help use --help'
@@ -125,6 +140,18 @@ for o, a in opts:
            expr = 'tcp port '+str(PORTS['SMTP'])
         else:
            expr = expr+" or tcp port "+str(PORTS['SMTP'])
+    if o in ('-o', '--enable-stdout'):
+        printMode=True
+    if o in ('-l', '--disable-logging'):
+        logOutput=True
+    if o in ('-i', '--iface'):
+        conf.iface=a
+    if o in ('-u', '--log-file'):
+        # check if directory is writable
+        if not os.access(a, os.W_OK):
+            print "CRITICAL ERROR: Selected log file is not writable!"
+            exit(0)
+        LOGFILE = a
 
 if expr == '':
     print "Please specify services (HTTP or FTP)"
@@ -171,13 +198,6 @@ if additionalModules == '*' or additionalModules == 'all':
             exec("RES_HOOKS['"+module_name+"'] = "+module_name+".R_HOOKS") # RESPONSE
         except AttributeError:
             True
-
-
-
-# poczta.fm
-#HTTP_HOOKS['pocztafm'] = dict()
-#HTTP_HOOKS['pocztafm']['url'] = 'logowanie.interia.pl/poczta/zaloguj'
-#HTTP_HOOKS['pocztafm']['module'] = 'parseInteriaPoczta'
 
 def is_ascii(s):
     ''' Check if string is UTF-8 encoded '''
@@ -330,7 +350,7 @@ def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
                    loginLen = (len(SMTP_SESSIONS[uid]['login'])+1)
                    hashLen = len(SMTP_SESSIONS[uid]['hash'])
                    SMTP_SESSIONS[uid]['passwd'] = SMTP_SESSIONS[uid]['hash'][loginLen:hashLen]
-                   log.info("[SMTP]: server="+ipsrc+", user="+SMTP_SESSIONS[uid]['login']+", passwd="+SMTP_SESSIONS[uid]['passwd'])
+                   printMessage("[SMTP]: server="+ipsrc+", user="+SMTP_SESSIONS[uid]['login']+", passwd="+SMTP_SESSIONS[uid]['passwd'])
         except KeyError:
             True
 
@@ -383,7 +403,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     
                          if not POSTData.has_key(uid):
                              POSTData[uid] = True
-                             log.info(InfoParsed)
+                             printMessage(InfoParsed)
     
                          Found=True
                      break
@@ -405,7 +425,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
 
         if printCookies == True:
             try:
-                print Headers['method']+": "+URL+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n"
+                printMessage(Headers['method']+": "+URL+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n")
             except KeyError:
                 True
     elif DataType == 'http:request:GET':
@@ -438,7 +458,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     
                          if not POSTData.has_key(uid):
                              POSTData[uid] = True
-                             log.info(InfoParsed)
+                             printMessage(InfoParsed)
     
                          Found=True
                      break
@@ -446,7 +466,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
 
         if printCookies == True:
             try:
-                print Headers['method']+": "+LastGETRequest+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n"
+                printMessage(Headers['method']+": "+LastGETRequest+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n")
             except KeyError:
                 True
 
@@ -476,7 +496,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     
                          if not POSTData.has_key(uid):
                              POSTData[uid] = True
-                             log.info(InfoParsed)
+                             printMessage(InfoParsed)
     
                          Found=True
                      break
@@ -495,18 +515,8 @@ def parsePOST(Headers, ipsrc=''):
 
                     if not POSTData.has_key(uid):
                         POSTData[uid] = True
-                        log.info("["+Headers['headers']['host'][0]+"]: POST Data: "+Headers['body'])
-            
+                        printMessage("["+Headers['headers']['host'][0]+"]: POST Data: "+Headers['body'])
 
-def parseFacebook(Headers, ipsrc='', hook=''):
-    ''' An example of filter '''
-
-    print "Hello facebook, this is a test..."
-    return "This will be logged"
-
-
-#def parseInteriaPoczta(Headers, ipsrc='', hook=''):
-#    print Headers
 
 ############################
 ##### FTP/POP3 PARSER  #####
@@ -531,7 +541,7 @@ def parseFTPData(raw, ipsrc, ipdst, sport, dport, servertype='FTP'):
 
     if FTP_CACHE.has_key(uid) and len(pw) == 1:
        FTP_CACHE[uid]['pass'] = str(pw[0]).replace('\r', '')
-       log.info("["+servertype+"]: server="+ipsrc+", user="+FTP_CACHE[uid]['user']+", pass="+FTP_CACHE[uid]['pass']) # SAVE TO FTP LOG
+       printMessage("["+servertype+"]: server="+ipsrc+", user="+FTP_CACHE[uid]['user']+", pass="+FTP_CACHE[uid]['pass']) # SAVE TO FTP LOG
 
 ################################
 ##### HTTP Headers parser  #####
@@ -599,14 +609,14 @@ def daemonize (stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
 
 def main():
     ''' Main function '''
-    global log, FTP_LOG, debugMode, consoleMode, printCookies, expr
+    global log, FTP_LOG, debugMode, consoleMode, printCookies, expr, LOGFILE
 
     log=logging.getLogger(APP_NAME)
 
-    if consoleMode:
-        handler = logging.StreamHandler()
-    else:
-        handler = logging.FileHandler(LOGFILE)
+    #if consoleMode:
+    #    handler = logging.StreamHandler()
+    #else:
+    handler = logging.FileHandler(LOGFILE)
 
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     handler.setFormatter(formatter)
@@ -617,13 +627,13 @@ def main():
     else:
         log.setLevel(logging.DEBUG)
    
-    log.info("Listening on "+expr)
+    printMessage("Listening on "+expr)
 
     if debugMode:
-        log.info("Debug mode activated")
+        printMessage("Debug mode activated")
 
     if consoleMode:
-        log.info("Console mode activated")
+        printMessage("Console mode activated")
     else:
         daemonize()
 
