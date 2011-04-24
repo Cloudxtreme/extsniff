@@ -259,6 +259,9 @@ if additionalModules == '*' or additionalModules == 'all':
     os.chdir(str(userdir)+"/.extsniff/smods/")
     file_list = glob.glob("*.py")
 
+    if len(file_list) == 0:
+        print "Error: No any module found in /root/.extsniff/smods/, please move plugins from ./plugins/ to /root/.extsniff/smods/"
+
     for i in file_list:
         module_name = str(i).replace('.py', '')
         if debugMode == True:
