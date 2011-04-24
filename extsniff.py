@@ -521,6 +521,9 @@ def makeWgetFromHTTPCookies(a, Domain, DefaultPath="/"):
 
                     SimpleCookieString=SimpleCookieString+"="+CookieSyntaxValue
             else:
+                if len(CookieSyntax) == 1:
+                    CookieSyntax.append("")
+
                 SimpleCookieString = SimpleCookieString+CookieSyntax[1] # for simple cookie its not complicated, it has "one value"
 
         if ElementID == CountOfCookies:
@@ -570,6 +573,8 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     if DataType == 'http:request:POST':
         Headers = parseHeader(raw, 'request')
 
+        print Headers
+
         #SearchHost = str(Headers['headers']['host'][0]).replace('www.', '')
         try:
              URL = Headers['headers']['host'][0]+Headers['uri']
@@ -617,7 +622,7 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
                 True
 
         if saveAllCookies == True:
-            cookiesToFile(URL, Headers['headers']['cookie'][0])
+            cookiesToFile(URL, Headers['headers']['cookie'][0], ipdst, ipsrc)
 
     elif DataType == 'http:request:GET':
         Headers = parseHeader(raw, 'request')

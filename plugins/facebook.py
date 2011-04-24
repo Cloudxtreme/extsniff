@@ -55,6 +55,9 @@ def makeWgetFromHTTPCookies(a):
 
                     SimpleCookieString=SimpleCookieString+"="+CookieSyntaxValue
             else:
+                if len(CookieSyntax) == 1:
+                    CookieSyntax.append("")
+
                 SimpleCookieString = SimpleCookieString+CookieSyntax[1] # for simple cookie its not complicated, it has "one value"
 
         if ElementID == CountOfCookies:
