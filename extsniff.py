@@ -48,6 +48,10 @@ printCookies=False
 printMode=False
 logOutput=False
 additionalModules = False # no additional modules, just for cookie sniffing on HTTP or FTP sniffing
+whiteList = list() # List of excluded hosts 
+blackList = list() # Sniff only blacklisted hosts
+bIP_LEN = 0
+wIP_LEN = 0
 
 # DEFAULT PORTS
 PORTS = dict()
@@ -62,15 +66,25 @@ expr='tcp port http'
 HTTP_HOOKS = dict() # POST
 GET_HOOKS = dict()  # GET
 RES_HOOKS = dict()  # RESPONSE
-#HTTP_HOOKS['facebook'] = dict()
-#HTTP_HOOKS['facebook']['url'] = 'facebook.com/editprofile'
-#HTTP_HOOKS['facebook']['module'] = 'parseFacebook'
 
 def printMessage(message):
     if consoleMode == False or logOutput == True:
         log.info(message)
     if printMode == True:
         print message
+
+
+def readIPFromArray(inputList):
+    ListOfHosts = list()
+    Lines = inputList.split("\n")
+
+    for Line in Lines: # Line == IP Adress or list of ip adresses seperated by comma ","
+        Multiples = Line.split(',')
+
+        for IPAdress in Multiples:
+            ListOfHosts.append(IPAdress)
+
+    return ListOfHosts
         
     
 
@@ -101,11 +115,13 @@ def printUsage():
     print "  -u, --log-file=        : select custom log file (default: /var/log/extsniff.log)"
     print "  -i, --iface=           : custom interface to listen to"
     print "  -q, --enable-irc       : listen on 6667 and 6666 IRC ports"
+    print "  -w, --whitelist        : dont capture packets from whitelisted MAC/IP adresses"
+    print "  -b, --blacklist        : capture packets only from blacklisted IP adresses"
     print ""
     exit(0);
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'qsrxfcdpholu:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface=', 'enable-irc'])
+    opts, args = getopt.getopt(sys.argv[1:], 'qsrxfcdpholb:w:u:i:m:', ['print-cookies', 'console','debug','help', 'disable-http', 'disable-ftp', 'enable-pop3', 'enable-smtp', 'enable-stdout', 'disable-logging', 'log-file=', 'iface=', 'enable-irc', 'whitelist=', 'blacklist'])
 except getopt.error, msg:
     print msg
     print 'for help use --help'
@@ -158,6 +174,24 @@ for o, a in opts:
             print "CRITICAL ERROR: Selected log file is not writable!"
             exit(0)
         LOGFILE = a
+    if o in ('-w', '--whitelist'):
+        if os.path.isfile(a) and os.access(a, os.W_OK):
+            FileHandler = open(a, "r")
+            whiteList = readIPFromArray(str(FileHandler.read()))
+            FileHandler.close()
+        else:
+            whiteList = readIPFromArray(a)
+
+        wIP_LEN = len(blackList)
+    if o in ('-b', '--blacklist'):
+        if os.path.isfile(a) and os.access(a, os.W_OK):
+            FileHandler = open(a, "r")
+            blackList = readIPFromArray(str(FileHandler.read()))
+            FileHandler.close()
+        else:
+            blackList = readIPFromArray(a)
+
+        bIP_LEN = len(blackList)
 
 if expr == '':
     print "Please specify services (HTTP or FTP)"
@@ -263,7 +297,7 @@ lastPacket = False
 def http_monitor_callback(pkt):
         ''' Callback for sniffer() '''
 
-        global allpackets, lastPacket
+        global allpackets, lastPacket, wIP_LEN, bIP_LEN, whiteList, blackList
         if pkt.haslayer(TCP):
               # ack
               if pkt.getlayer(TCP).flags == 24 or pkt.getlayer(TCP).flags == 16:
@@ -276,6 +310,19 @@ def http_monitor_callback(pkt):
                      ack = pkt.getlayer(TCP).ack
                      sport=pkt.sprintf("%IP.sport%")
                      dport=pkt.sprintf("%IP.dport%")
+
+                     # whitelist
+                     if wIP_LEN > 0:
+                          for bIP in whiteList:
+                              if str(ipsrc) == bIP or str(ipdst) == bIP:
+                                  return
+
+                     # blacklist
+                     if bIP_LEN > 0:
+                          for bIP in blackList:
+                              if str(ipsrc) != bIP and str(ipdst) != bIP:
+                                  return
+
 
                      # is it WIRELESS OR ETHERNET TYPE? GET SOURCE ID (MAC OF VICTIM)
                      if pkt.haslayer(Dot11):
