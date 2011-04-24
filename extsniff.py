@@ -573,8 +573,6 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
     if DataType == 'http:request:POST':
         Headers = parseHeader(raw, 'request')
 
-        print Headers
-
         #SearchHost = str(Headers['headers']['host'][0]).replace('www.', '')
         try:
              URL = Headers['headers']['host'][0]+Headers['uri']
@@ -641,6 +639,17 @@ def parseHTTPData(raw, ipsrc, ipdst, sport, dport, pkt):
 
         if not Headers['headers'].has_key('cookie'):
             Headers['headers']['user-agent'] = {0:'None'}
+
+        if Headers['headers'].has_key('authorization'):
+            BasicAuth = re.findall('Basic (.*)', Headers['headers']['authorization'][0])
+            if len(BasicAuth) == 1:
+                BasicAuthDecoded = base64.decodestring(BasicAuth[0])
+                BasicAuth = BasicAuthDecoded.split(":")
+                if len(BasicAuth) > 1:
+                    printMessage("[HTTP-AUTH] type=basic, username="+str(BasicAuth[0])+", passwd="+str(BasicAuth[1])+", url=http://"+str(LastGETRequest)+", ipsrc="+str(ipsrc)+", auth="+BasicAuthDecoded)
+                else:
+                    print "Warning: Unknown HTTP authentication type found"
+
 
         if len(GET_HOOKS) > 0:
             for hook in GET_HOOKS:
