@@ -544,7 +544,7 @@ def cookiesToFile(URL, Cookies, ipdst, ipsrc):
 
     if not os.path.exists("/root/.extsniff/cookies/"+str(o.netloc+ipdst+ipsrc)) and not os.path.exists("/root/.extsniff/cookies/"+str(o.netloc+ipsrc+ipdst)):
         FileHandler = open("/root/.extsniff/cookies/"+str(o.netloc+ipdst+ipsrc), "w")
-        FileHandler.write(makeWgetFromHTTPCookies(Cookies, o.netloc.replace("www", ""), ""))
+        FileHandler.write(makeWgetFromHTTPCookies(Cookies, o.netloc.replace("www", ""), "/"))
         FileHandler.close()
     
 
