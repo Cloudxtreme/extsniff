@@ -92,5 +92,8 @@ Syntax: -b file-with-blacklisted-ips
  Syntax #2: -b "192.168.1.100,192.168.1.101,192.168.1.102,192.168.1.103"
 
 Changelog:
+30.07.2011 (v.1.4.1):
+    * Changed Python version from python2.7 to python
+
 29.07.2011 (v.1.4):
     + Created changelog and added versioning informations

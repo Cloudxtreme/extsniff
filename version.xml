@@ -12,7 +12,7 @@
 		<platform>BeOS</platform>
 	</platforms>
 
-	<version>1.4</version>
+	<version>1.4.1</version>
 	<mirrors>
 		<mirror>git://github.com/webnull/extsniff.git</mirror>
 	</mirrors>
