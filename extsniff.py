@@ -20,10 +20,10 @@
 
 
 import logging 
-import pcap
+#import pcap
 import re
-#import scapy # MIGRATION FROM SCAPY TO PCAP (SCAPY LOOSES TOO MANY PACKETS TO USE IT)
-#from scapy.all import sniff,Ether,ARP,conf,TCP,Raw,IP,Dot11,Ether
+import scapy # MIGRATION FROM SCAPY TO PCAP (SCAPY LOOSES TOO MANY PACKETS TO USE IT)
+from scapy.all import sniff,Ether,ARP,conf,TCP,Raw,IP,Dot11,Ether
 import getopt
 import sys,os,time,glob,base64,md5
 
@@ -39,6 +39,7 @@ PIDFILE = '/var/log/'+APP_NAME+'.pid'
 conf.iface='wlan0'
 conf.verb=0
 conf.promisc=0
+conf.use_pcap=True
 
 log=None
 
